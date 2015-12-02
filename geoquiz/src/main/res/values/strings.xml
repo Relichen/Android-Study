@@ -1,0 +1,24 @@
+<resources>
+    <string name="app_name">GeoQuiz</string>
+    <string name="true_button">True</string>
+    <string name="false_button">False</string>
+    <string name="next_button">Next</string>
+    <string name="prev_button">Prev</string>
+
+    <string name="next_image_button_description">下一题</string>
+    <string name="prev_image_button_description">上一题</string>
+
+    <string name="correct_toast">Correct!</string>
+    <string name="incorrect_toast">SB~</string>
+    <string name="judgment_toast">Cheating is wrong.</string>
+
+    <string name="cheat_button">Cheat!</string>
+    <string name="show_answer_button">Show Answer</string>
+
+    <string name="waring_text">Are you sure want to do this?</string>
+    <string name="question_first">第一题:对的</string>
+    <string name="question_second">第二题:对的</string>
+    <string name="question_third">第三题:错的</string>
+    <string name="question_fourth">第四题:错的</string>
+    <string name="action_settings">Settings</string>
+</resources>
