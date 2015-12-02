@@ -13,6 +13,7 @@ import android.hardware.Camera;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.provider.ContactsContract;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
@@ -20,6 +21,7 @@ import android.support.v4.app.NavUtils;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.text.format.DateFormat;
+import android.util.Log;
 import android.view.ContextMenu;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -34,6 +36,7 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 
+import java.io.File;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
@@ -42,6 +45,7 @@ public class CrimeFragment extends Fragment {
 
     private static final String TAG = "CrimeFragment";
     public static final String EXTRA_CRIME_ID = "com.bignerdranch.android.criminalintent.crime_id";
+    private static final String EXTRA_PHOTO_NAME = "com.bignerdranch.android.criminalintent.photo_name";
     private static final String DIALOG_IMAGE = "image";
     private static final String DIALOG_DATE = "date";
     private static final String DIALOG_TIME = "time";
@@ -50,7 +54,8 @@ public class CrimeFragment extends Fragment {
     private static final int REQUEST_TIME = 1;
     private static final int REQUEST_CHOICE = 2;
     private static final int REQUEST_PHOTO = 3;
-    private static final int REQUEST_CONTACT = 4;
+//    private static final int REQUEST_INTENT_PHOTO = 4;
+    private static final int REQUEST_CONTACT = 5;
     private Crime mCrime;
     private EditText mTitleField;
     private Button mDateButton;
@@ -61,6 +66,8 @@ public class CrimeFragment extends Fragment {
     private Button mSuspectButton;
     private Button mDialButton;
     private Callbacks mCallbacks;
+//    private Uri mPhotoUri;
+//    private String fileName="a";
 
     public interface Callbacks {
         void onCrimeUpdated(Crime crime);
@@ -151,6 +158,18 @@ public class CrimeFragment extends Fragment {
             public void onClick(View v) {
                 Intent i = new Intent(getActivity(), CrimeCameraActivity.class);
                 startActivityForResult(i, REQUEST_PHOTO);
+
+//                使用隐式intent调用相机
+//                并不好使... 全局变量 fileName、photoUri 在onActivityResult中会变成空值??????
+//                所以没办法在onActivityResult中新建Photo对象
+//                fileName = UUID.randomUUID().toString() + ".jpg";
+//                File file = new File(Environment.getExternalStoragePublicDirectory(Environment
+//                        .DIRECTORY_PICTURES), fileName);
+//                mPhotoUri = Uri.fromFile(file);
+//                Log.i(TAG, "photo filename: " + mPhotoUri.toString());
+//                Intent i = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+//                i.putExtra(MediaStore.EXTRA_OUTPUT, mPhotoUri);
+//                startActivityForResult(i, REQUEST_INTENT_PHOTO);
             }
         });
 
@@ -269,6 +288,20 @@ public class CrimeFragment extends Fragment {
 //                mCallbacks.onCrimeUpdated(mCrime);
                 showPhoto();
             }
+//        } else if (requestCode == REQUEST_INTENT_PHOTO) {
+//
+//            if (mCrime.getPhoto() != null) {
+//                mCrime.deletePhoto(getActivity().getFileStreamPath(mCrime.getPhoto().getFilename()).getAbsolutePath());
+//            }
+
+//            String fileName = data.getStringExtra(EXTRA_PHOTO_NAME);
+//            Log.i(TAG, "photo filename: " + fileName);
+//            if (fileName != null) {
+//                Photo photo = new Photo(fileName);
+//                mCrime.setPhoto(photo);
+//                showPhoto();
+//            }
+
         } else if (requestCode == REQUEST_CONTACT) {
             Uri contactUri = data.getData();
 
@@ -310,7 +343,7 @@ public class CrimeFragment extends Fragment {
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.menu_item_delete_crime:
-            new AlertDialog.Builder(getActivity())
+                new AlertDialog.Builder(getActivity())
                         .setMessage(R.string.delete_picker_message)
                         .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
                             @Override
@@ -405,5 +438,48 @@ public class CrimeFragment extends Fragment {
         String report = getString(R.string.crime_report, mCrime.getTitle(), dateString, solvedString, suspect);
 
         return report;
+    }
+
+    private static File getOutputMediaFile() {
+        // To be safe, you should check that the SDCard is mounted
+        // using Environment.getExternalStorageState() before doing this.
+
+        File mediaStorageDir = null;
+        try {
+            // This location works best if you want the created images to be
+            // shared
+            // between applications and persist after your app has been
+            // uninstalled.
+            mediaStorageDir = new File(Environment
+                    .getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
+                    "MyCameraApp");
+
+            Log.d(TAG, "Successfully created mediaStorageDir: "
+                    + mediaStorageDir);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            Log.d(TAG, "Error in Creating mediaStorageDir: "
+                    + mediaStorageDir);
+        }
+
+        // Create the storage directory if it does not exist
+        if (!mediaStorageDir.exists()) {
+            if (!mediaStorageDir.mkdirs()) {
+                // 在SD卡上创建文件夹需要权限：
+                // <uses-permission
+                // android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+                Log.d(TAG,
+                        "failed to create directory, check if you have the WRITE_EXTERNAL_STORAGE permission");
+                return null;
+            }
+        }
+
+        // Create a media file name
+        String fileName = UUID.randomUUID().toString() + ".jpg";
+        File mediaFile;
+        mediaFile = new File(mediaStorageDir.getPath(),fileName);
+
+        return mediaFile;
     }
 }
