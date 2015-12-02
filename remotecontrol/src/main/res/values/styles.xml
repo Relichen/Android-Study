@@ -1,0 +1,19 @@
+<resources>
+
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="android:Theme.Holo.Light"/>
+
+    <style name="RemoteButton">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:textSize">20dp</item>
+        <item name="android:background">@drawable/button_shape_shadowed</item>
+        <item name="android:textColor">@drawable/button_text_color</item>
+        <item name="android:layout_margin">3dp</item>
+    </style>
+
+    <style name="RemoteButton.BoldRemoteButton">
+        <item name="android:textStyle">bold</item>
+    </style>
+
+</resources>
