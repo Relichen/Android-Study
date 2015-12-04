@@ -27,7 +27,7 @@ public class FlickrFetchr {
     private static final String API_KEY = "http://api.flickr.com/services/rest/";
     private static final String METHOD_GET_RECENT = "flickr.photos.getRecent";
     private static final String PARAM_EXTRAS = "extras";
-
+    private static final String PAGE = "page";
     private static final String EXTRA_SMALL_URL = "url_s";
 
     private static final String XML_PHOTO = "photo";
@@ -59,7 +59,7 @@ public class FlickrFetchr {
         return new String(getUrlBytes(urlSpec));
     }
 
-    public ArrayList<GalleryItem> fetchItem() {
+    public ArrayList<GalleryItem> fetchItem(Integer page) {
 
         ArrayList<GalleryItem> items = new ArrayList<>();
 
@@ -68,6 +68,7 @@ public class FlickrFetchr {
                     .appendQueryParameter("method", METHOD_GET_RECENT)
                     .appendQueryParameter("api_key", API_KEY)
                     .appendQueryParameter(PARAM_EXTRAS, EXTRA_SMALL_URL)
+                    .appendQueryParameter(PAGE, page.toString())
                     .build().toString();
 
             String xmlString = getUrl(url);
@@ -97,7 +98,7 @@ public class FlickrFetchr {
                 GalleryItem item = new GalleryItem();
                 item.setId(id);
                 item.setCaption(caption);
-                item.setUri(smallUrl);
+                item.setUrl(smallUrl);
 
                 items.add(item);
             }
