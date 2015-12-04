@@ -13,6 +13,11 @@ public class Photo {
     private String mFilename;
     private int mOrientation;
 
+    public Photo(String filename) {
+        mFilename = filename;
+        mOrientation = 0;
+    }
+
     public Photo(String filename, int orientation) {
         mFilename = filename;
         mOrientation = orientation;

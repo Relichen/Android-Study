@@ -45,7 +45,8 @@ public class CrimeFragment extends Fragment {
 
     private static final String TAG = "CrimeFragment";
     public static final String EXTRA_CRIME_ID = "com.bignerdranch.android.criminalintent.crime_id";
-    private static final String EXTRA_PHOTO_NAME = "com.bignerdranch.android.criminalintent.photo_name";
+    private static final String PHOTO_FILENAME = "photo_name";
+    private static final String PHOTO_URI = "photo_uri";
     private static final String DIALOG_IMAGE = "image";
     private static final String DIALOG_DATE = "date";
     private static final String DIALOG_TIME = "time";
@@ -54,7 +55,7 @@ public class CrimeFragment extends Fragment {
     private static final int REQUEST_TIME = 1;
     private static final int REQUEST_CHOICE = 2;
     private static final int REQUEST_PHOTO = 3;
-//    private static final int REQUEST_INTENT_PHOTO = 4;
+    private static final int REQUEST_INTENT_PHOTO = 4;
     private static final int REQUEST_CONTACT = 5;
     private Crime mCrime;
     private EditText mTitleField;
@@ -66,8 +67,8 @@ public class CrimeFragment extends Fragment {
     private Button mSuspectButton;
     private Button mDialButton;
     private Callbacks mCallbacks;
-//    private Uri mPhotoUri;
-//    private String fileName="a";
+    private Uri mPhotoUri;
+    private String mPhotoFileName;
 
     public interface Callbacks {
         void onCrimeUpdated(Crime crime);
@@ -92,6 +93,10 @@ public class CrimeFragment extends Fragment {
         setHasOptionsMenu(true);
         UUID crimeId = (UUID) getArguments().getSerializable(EXTRA_CRIME_ID);
         mCrime = CrimeLab.get(getActivity()).getCrime(crimeId);
+        if (savedInstanceState != null) {
+            mPhotoFileName = savedInstanceState.getString(PHOTO_FILENAME);
+            mPhotoUri = savedInstanceState.getParcelable(PHOTO_URI);
+        }
     }
 
     public void updateDate() {
@@ -160,13 +165,17 @@ public class CrimeFragment extends Fragment {
                 startActivityForResult(i, REQUEST_PHOTO);
 
 //                使用隐式intent调用相机
-//                并不好使... 全局变量 fileName、photoUri 在onActivityResult中会变成空值??????
-//                所以没办法在onActivityResult中新建Photo对象
-//                fileName = UUID.randomUUID().toString() + ".jpg";
+//                ----全局变量 fileName、photoUri 在onActivityResult中会变成空值??????
+//                ----因为切换到相机重建了Activity, 这两个属性自然变成了空值
+//                ----在onSaveInstanceState中保存变量即可
+
+//                mPhotoFileName = UUID.randomUUID().toString() + ".jpg";
+
+//                但貌似只能保存到外部路径，如果保存在data/data/包名/files中会在照完相返回时卡住
+//                其他所有有关用文件名找路径的方法都要改，太麻烦了，不改了
 //                File file = new File(Environment.getExternalStoragePublicDirectory(Environment
-//                        .DIRECTORY_PICTURES), fileName);
+//                        .DIRECTORY_PICTURES), mPhotoFileName);
 //                mPhotoUri = Uri.fromFile(file);
-//                Log.i(TAG, "photo filename: " + mPhotoUri.toString());
 //                Intent i = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
 //                i.putExtra(MediaStore.EXTRA_OUTPUT, mPhotoUri);
 //                startActivityForResult(i, REQUEST_INTENT_PHOTO);
@@ -245,6 +254,13 @@ public class CrimeFragment extends Fragment {
     }
 
     @Override
+    public void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putString(PHOTO_FILENAME, mPhotoFileName);
+        outState.putParcelable(PHOTO_URI, mPhotoUri);
+    }
+
+    @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (resultCode != Activity.RESULT_OK) {
             return;
@@ -288,19 +304,19 @@ public class CrimeFragment extends Fragment {
 //                mCallbacks.onCrimeUpdated(mCrime);
                 showPhoto();
             }
-//        } else if (requestCode == REQUEST_INTENT_PHOTO) {
-//
-//            if (mCrime.getPhoto() != null) {
-//                mCrime.deletePhoto(getActivity().getFileStreamPath(mCrime.getPhoto().getFilename()).getAbsolutePath());
-//            }
+        } else if (requestCode == REQUEST_INTENT_PHOTO) {
 
-//            String fileName = data.getStringExtra(EXTRA_PHOTO_NAME);
-//            Log.i(TAG, "photo filename: " + fileName);
-//            if (fileName != null) {
-//                Photo photo = new Photo(fileName);
-//                mCrime.setPhoto(photo);
-//                showPhoto();
-//            }
+            if (mCrime.getPhoto() != null) {
+                mCrime.deletePhoto(mPhotoUri.getPath());
+            }
+
+            if (mPhotoFileName != null) {
+
+                Photo photo = new Photo(mPhotoFileName);
+                mCrime.setPhoto(photo);
+                BitmapDrawable b = PictureUtils.getScaledDrawable(getActivity(), mPhotoUri.getPath());
+                mPhotoView.setImageDrawable(b);
+            }
 
         } else if (requestCode == REQUEST_CONTACT) {
             Uri contactUri = data.getData();
@@ -478,7 +494,7 @@ public class CrimeFragment extends Fragment {
         // Create a media file name
         String fileName = UUID.randomUUID().toString() + ".jpg";
         File mediaFile;
-        mediaFile = new File(mediaStorageDir.getPath(),fileName);
+        mediaFile = new File(mediaStorageDir.getPath(), fileName);
 
         return mediaFile;
     }
