@@ -7,6 +7,7 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Message;
 import android.util.Log;
+import android.util.LruCache;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -21,15 +22,19 @@ public class ThumbnailDownloader<Token> extends HandlerThread {
 
     private static final String TAG = "ThumbnailDownloader";
     private static final int MESSAGE_DOWNLOAD = 0;
+    private static final int MESSAGE_CACHING = 1;
 
     Handler mHandler;
     Handler mResponseHandler;
-    Map<Token, String> requestMap = Collections.synchronizedMap(new HashMap<Token, String>());
     Listener mListener;
+    LruCache<String, Bitmap> mBitmapLruCache;
+    Map<Token, String> requestMap = Collections.synchronizedMap(new HashMap<Token, String>());
+    Map<String, String> requestCacheMap = Collections.synchronizedMap(new HashMap<String, String>());
 
-    public ThumbnailDownloader(Handler responseHandler) {
+    public ThumbnailDownloader(Handler responseHandler, LruCache<String, Bitmap> lruCache) {
         super(TAG);
         mResponseHandler = responseHandler;
+        mBitmapLruCache = lruCache;
     }
 
     public interface Listener<Token> {
@@ -39,7 +44,7 @@ public class ThumbnailDownloader<Token> extends HandlerThread {
     @SuppressLint("HandlerLeak")
     @Override
     protected void onLooperPrepared() {
-        mHandler = new Handler(){
+        mHandler = new Handler() {
             @Override
             public void handleMessage(Message msg) {
                 if (msg.what == MESSAGE_DOWNLOAD) {
@@ -48,8 +53,32 @@ public class ThumbnailDownloader<Token> extends HandlerThread {
                     Log.i(TAG, "Got a request for url: " + requestMap.get(token));
                     handleRequest(token);
                 }
+                else if (msg.what == MESSAGE_CACHING) {
+                    int id = (int) msg.obj;
+                    handleRequestCache(id);
+                }
             }
         };
+    }
+
+    private void handleRequestCache(final int id) {
+        try {
+            final String url = requestCacheMap.get(id);
+            if (url == null) {
+                return;
+            }
+            final Bitmap bitmap;
+
+            if (getBitmapFromMemCache(url) == null) {
+
+                byte[] bitmapBytes = new FlickrFetchr().getUrlBytes(url);
+                bitmap = BitmapFactory.decodeByteArray(bitmapBytes, 0, bitmapBytes.length);
+                addBitmapToMemCache(url, bitmap);
+            }
+        } catch (IOException e) {
+            Log.e(TAG, "Error downloading image", e);
+        }
+
     }
 
     private void handleRequest(final Token token) {
@@ -59,9 +88,17 @@ public class ThumbnailDownloader<Token> extends HandlerThread {
             if (url == null) {
                 return;
             }
+            final Bitmap bitmap;
 
-            byte[] bitmapBytes = new FlickrFetchr().getUrlBytes(url);
-            final Bitmap bitmap = BitmapFactory.decodeByteArray(bitmapBytes, 0, bitmapBytes.length);
+            if (getBitmapFromMemCache(url) != null) {
+                bitmap = getBitmapFromMemCache(url);
+
+            } else {
+
+                byte[] bitmapBytes = new FlickrFetchr().getUrlBytes(url);
+                bitmap = BitmapFactory.decodeByteArray(bitmapBytes, 0, bitmapBytes.length);
+                addBitmapToMemCache(url, bitmap);
+            }
 
             mResponseHandler.post(new Runnable() {
                 @Override
@@ -82,7 +119,13 @@ public class ThumbnailDownloader<Token> extends HandlerThread {
         Log.i(TAG, "Got an url: " + url);
         requestMap.put(token, url);
 
-        mHandler.obtainMessage(MESSAGE_DOWNLOAD).sendToTarget();
+        mHandler.obtainMessage(MESSAGE_DOWNLOAD, token).sendToTarget();
+    }
+
+    public void queueThumbnailCache(String id, String url) {
+        requestCacheMap.put(id, url);
+
+        mHandler.obtainMessage(MESSAGE_CACHING, id).sendToTarget();
     }
 
     public void clearQueue() {
@@ -92,5 +135,15 @@ public class ThumbnailDownloader<Token> extends HandlerThread {
 
     public void setListener(Listener listener) {
         mListener = listener;
+    }
+
+    public void addBitmapToMemCache(String key, Bitmap bitmap) {
+        if (getBitmapFromMemCache(key) == null) {
+            mBitmapLruCache.put(key, bitmap);
+        }
+    }
+
+    public Bitmap getBitmapFromMemCache(String key) {
+        return mBitmapLruCache.get(key);
     }
 }
