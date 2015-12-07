@@ -1,20 +1,32 @@
 package com.bignerdranch.android.photogallery;
 
+import android.annotation.TargetApi;
+import android.app.Activity;
+import android.app.SearchManager;
+import android.app.SearchableInfo;
+import android.content.ComponentName;
 import android.graphics.Bitmap;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 import android.util.Log;
 import android.util.LruCache;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AbsListView;
 import android.widget.ArrayAdapter;
 import android.widget.GridView;
 import android.widget.ImageView;
+import android.widget.SearchView;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 
@@ -35,13 +47,15 @@ public class PhotoGalleryFragment extends Fragment {
     private int fetched_page = 0;
     private int scrollPosition = 0;
 
+    private String totalResult;
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setRetainInstance(true);
+        setHasOptionsMenu(true);
 
-        new FetchItemsTask().execute(current_page);
-
+        updateItems(current_page);
 
         // Get max available VM memory, exceeding this amount will throw an
         // OutOfMemory exception. Stored in kilobytes as LruCache takes an
@@ -51,7 +65,7 @@ public class PhotoGalleryFragment extends Fragment {
         // Use 1/8th of the available memory for this memory cache.
         final int cacheSize = maxMemory / 8;
 
-        mBitmapLruCache = new LruCache<String, Bitmap>(cacheSize){
+        mBitmapLruCache = new LruCache<String, Bitmap>(cacheSize) {
             @Override
             protected int sizeOf(String key, Bitmap value) {
                 return value.getByteCount() / 1024;
@@ -92,7 +106,7 @@ public class PhotoGalleryFragment extends Fragment {
                 if (firstVisibleItem + visibleItemCount == totalItemCount
                         && totalItemCount > 0 && current_page == fetched_page) {
                     scrollPosition = firstVisibleItem + 3;
-                    new FetchItemsTask().execute(++current_page);
+                    updateItems(++current_page);
                 }
             }
         });
@@ -119,7 +133,26 @@ public class PhotoGalleryFragment extends Fragment {
 
         @Override
         protected ArrayList<GalleryItem> doInBackground(Integer... params) {
-            return new FlickrFetchr().fetchItem(params[0]);
+            Activity activity = getActivity();
+            if (activity == null) {
+                return new ArrayList<GalleryItem>();
+            }
+            String query = PreferenceManager.getDefaultSharedPreferences(activity).getString
+                    (FlickrFetchr.PREF_SEARCH_QUERY, null);
+
+//            当app退出时，SharedPreferences的内容没被删除，所以下一次再打开app时直接进入搜索
+//            点击清除按钮后(搜索图标旁边的X) 再重启app才会进入"首次打开"中
+            if (query != null) {
+                Log.i(TAG, "搜索: " + query);
+                FlickrFetchr flickrFetchr = new FlickrFetchr();
+                ArrayList<GalleryItem> items = flickrFetchr.search(query);
+                totalResult = flickrFetchr.getTotal();
+                Log.i(TAG, "totalResult: " + totalResult);
+                return items;
+            } else {
+                Log.i(TAG, "首次打开");
+                return new FlickrFetchr().fetchItem(params[0]);
+            }
         }
 
         @Override
@@ -130,6 +163,7 @@ public class PhotoGalleryFragment extends Fragment {
                 mGalleryItems = galleryItems;
             }
             setupAdapter();
+            Toast.makeText(getActivity(), "Result Counts: " + totalResult, Toast.LENGTH_LONG).show();
             fetched_page++;
         }
     }
@@ -196,5 +230,50 @@ public class PhotoGalleryFragment extends Fragment {
 
             return convertView;
         }
+    }
+
+    @TargetApi(Build.VERSION_CODES.HONEYCOMB)
+    @Override
+    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
+        super.onCreateOptionsMenu(menu, inflater);
+        inflater.inflate(R.menu.fragment_photo_gallery, menu);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
+
+            MenuItem menuItem = menu.findItem(R.id.menu_item_search);
+            SearchView searchView = (SearchView) menuItem.getActionView();
+
+            SearchManager searchManager = (SearchManager) getActivity().getSystemService(Activity.SEARCH_SERVICE);
+            ComponentName name = getActivity().getComponentName();
+            SearchableInfo info = searchManager.getSearchableInfo(name);
+
+            searchView.setSearchableInfo(info);
+        }
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.menu_item_search:
+                getActivity().startSearch(PreferenceManager
+                                .getDefaultSharedPreferences(getActivity())
+                                .getString(FlickrFetchr.PREF_SEARCH_QUERY, null),
+                        true, null, false);
+                return true;
+            case R.id.menu_item_clear:
+                PreferenceManager.getDefaultSharedPreferences(getActivity())
+                        .edit()
+                        .putString(FlickrFetchr.PREF_SEARCH_QUERY, null)
+                        .commit();
+                updateItems(0);
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+    }
+
+    public void updateItems(int page) {
+        Log.i(TAG, "启动AsyncTask线程");
+        new FetchItemsTask().execute(page);
     }
 }

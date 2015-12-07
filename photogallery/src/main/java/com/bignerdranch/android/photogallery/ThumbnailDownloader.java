@@ -52,33 +52,12 @@ public class ThumbnailDownloader<Token> extends HandlerThread {
                     Token token = (Token) msg.obj;
                     Log.i(TAG, "Got a request for url: " + requestMap.get(token));
                     handleRequest(token);
-                }
-                else if (msg.what == MESSAGE_CACHING) {
-                    int id = (int) msg.obj;
+                } else if (msg.what == MESSAGE_CACHING) {
+                    String id = (String) msg.obj;
                     handleRequestCache(id);
                 }
             }
         };
-    }
-
-    private void handleRequestCache(final int id) {
-        try {
-            final String url = requestCacheMap.get(id);
-            if (url == null) {
-                return;
-            }
-            final Bitmap bitmap;
-
-            if (getBitmapFromMemCache(url) == null) {
-
-                byte[] bitmapBytes = new FlickrFetchr().getUrlBytes(url);
-                bitmap = BitmapFactory.decodeByteArray(bitmapBytes, 0, bitmapBytes.length);
-                addBitmapToMemCache(url, bitmap);
-            }
-        } catch (IOException e) {
-            Log.e(TAG, "Error downloading image", e);
-        }
-
     }
 
     private void handleRequest(final Token token) {
@@ -95,8 +74,7 @@ public class ThumbnailDownloader<Token> extends HandlerThread {
 
             } else {
 
-                byte[] bitmapBytes = new FlickrFetchr().getUrlBytes(url);
-                bitmap = BitmapFactory.decodeByteArray(bitmapBytes, 0, bitmapBytes.length);
+                bitmap = getBitmapFromUrl(url);
                 addBitmapToMemCache(url, bitmap);
             }
 
@@ -115,6 +93,29 @@ public class ThumbnailDownloader<Token> extends HandlerThread {
         }
     }
 
+    private void handleRequestCache(final String id) {
+        try {
+            final String url = requestCacheMap.get(id);
+            if (url == null) {
+                return;
+            }
+            final Bitmap bitmap;
+
+            if (getBitmapFromMemCache(url) == null) {
+
+                bitmap = getBitmapFromUrl(url);
+                addBitmapToMemCache(url, bitmap);
+
+//                如果每个GalleryItem都放20个进map里，就占用太大了，
+//                想想应该只能在这个时候将这个请求的记录移除
+                requestCacheMap.remove(id);
+            }
+        } catch (IOException e) {
+            Log.e(TAG, "Error downloading image", e);
+        }
+
+    }
+
     public void queueThumbnail(Token token, String url) {
         Log.i(TAG, "Got an url: " + url);
         requestMap.put(token, url);
@@ -131,6 +132,7 @@ public class ThumbnailDownloader<Token> extends HandlerThread {
     public void clearQueue() {
         mHandler.removeMessages(MESSAGE_DOWNLOAD);
         requestMap.clear();
+        requestCacheMap.clear();
     }
 
     public void setListener(Listener listener) {
@@ -145,5 +147,10 @@ public class ThumbnailDownloader<Token> extends HandlerThread {
 
     public Bitmap getBitmapFromMemCache(String key) {
         return mBitmapLruCache.get(key);
+    }
+
+    private Bitmap getBitmapFromUrl(String url) throws IOException {
+        byte[] bitmapBytes = new FlickrFetchr().getUrlBytes(url);
+        return BitmapFactory.decodeByteArray(bitmapBytes, 0, bitmapBytes.length);
     }
 }
