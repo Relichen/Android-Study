@@ -267,8 +267,28 @@ public class PhotoGalleryFragment extends Fragment {
                         .commit();
                 updateItems(0);
                 return true;
+            case R.id.menu_item_toggle_polling:
+                boolean shouldStartAlarm = !PullService.isAlarmServiceOn(getActivity());
+                PullService.setServiceAlarm(getActivity(), shouldStartAlarm);
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
+                    getActivity().invalidateOptionsMenu();
+                }
+                return true;
             default:
                 return super.onOptionsItemSelected(item);
+        }
+    }
+
+    @Override
+    public void onPrepareOptionsMenu(Menu menu) {
+        super.onPrepareOptionsMenu(menu);
+
+        MenuItem menuItem = menu.findItem(R.id.menu_item_toggle_polling);
+        if (PullService.isAlarmServiceOn(getActivity())) {
+            menuItem.setTitle(R.string.stop_polling);
+        } else {
+            menuItem.setTitle(R.string.start_polling);
         }
     }
 
