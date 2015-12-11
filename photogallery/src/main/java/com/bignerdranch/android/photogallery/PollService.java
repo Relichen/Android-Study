@@ -1,9 +1,9 @@
 package com.bignerdranch.android.photogallery;
 
+import android.app.Activity;
 import android.app.AlarmManager;
 import android.app.IntentService;
 import android.app.Notification;
-import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
@@ -20,13 +20,19 @@ import java.util.ArrayList;
  * @author Zhuo
  *         2015/12/8
  */
-public class PullService extends IntentService {
+public class PollService extends IntentService {
 
-    private static final String TAG = "PullService";
+    private static final String TAG = "PollService";
 
-    private static final int POLL_INTERVAL = 1000 * 10; // 15 second
+    public static final String ACTION_SHOW_NOTIFICATION =
+            "com.bignerdranch.android.photogallery.SHOW_NOTIFICATION";
 
-    public PullService() {
+    public static final String PERM_PRIVATE = "com.bignerdranch.android.photogallery.PRIVATE";
+
+    private static final int POLL_INTERVAL = 1000 * 10; // 10 second
+    public static final String PREF_IS_ALARM_ON = "isAlarmOn";
+
+    public PollService() {
         super(TAG);
     }
 
@@ -69,8 +75,10 @@ public class PullService extends IntentService {
                     .setAutoCancel(true)
                     .build();
 
-            NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-            notificationManager.notify(0, notification);
+            showBackgroundNotification(0, notification);
+
+//            sendBroadcast(new Intent(PollService.ACTION_SHOW_NOTIFICATION), PollService.PERM_PRIVATE);
+
             return;
         }
 
@@ -103,9 +111,18 @@ public class PullService extends IntentService {
         preferences.edit().putString(FlickrFetchr.PREF_LAST_RESULT_ID, resultId).commit();
     }
 
+    private void showBackgroundNotification(int requestCode, Notification notification) {
+        Intent i = new Intent(PollService.ACTION_SHOW_NOTIFICATION);
+        i.putExtra("REQUEST_CODE", requestCode);
+        i.putExtra("NOTIFICATION", notification);
+
+        sendOrderedBroadcast(i, PollService.PERM_PRIVATE, null, null, Activity.RESULT_OK, null, null);
+
+    }
+
     public static void setServiceAlarm(Context context, boolean isOn) {
 
-        Intent i = new Intent(context, PullService.class);
+        Intent i = new Intent(context, PollService.class);
         PendingIntent pendingIntent = PendingIntent.getService(context, 0, i, 0);
 
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
@@ -116,11 +133,27 @@ public class PullService extends IntentService {
             alarmManager.cancel(pendingIntent);
             pendingIntent.cancel();
         }
+
+        PreferenceManager.getDefaultSharedPreferences(context)
+                .edit().putBoolean(PREF_IS_ALARM_ON, isOn).commit();
+
     }
 
     public static boolean isAlarmServiceOn(Context context) {
-        Intent i = new Intent(context, PullService.class);
+        Intent i = new Intent(context, PollService.class);
         PendingIntent pendingIntent = PendingIntent.getService(context, 0, i, PendingIntent.FLAG_NO_CREATE);
         return pendingIntent != null;
+    }
+
+    @Override
+    public void onDestroy() {
+        Log.i(TAG, "service destroy");
+        super.onDestroy();
+    }
+
+    @Override
+    public void onCreate() {
+        Log.i(TAG, "service create");
+        super.onCreate();
     }
 }

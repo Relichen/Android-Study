@@ -112,7 +112,7 @@ public class FlickrFetchr {
 
         while (eventType != XmlPullParser.END_DOCUMENT) {
 
-            if(eventType == XmlPullParser.START_TAG && XML_PHOTOS.equals(parser.getName())) {
+            if (eventType == XmlPullParser.START_TAG && XML_PHOTOS.equals(parser.getName())) {
                 total = parser.getAttributeValue(null, "total");
             }
 

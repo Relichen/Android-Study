@@ -12,7 +12,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
-import android.support.v4.app.Fragment;
 import android.util.Log;
 import android.util.LruCache;
 import android.view.LayoutInflater;
@@ -26,7 +25,6 @@ import android.widget.ArrayAdapter;
 import android.widget.GridView;
 import android.widget.ImageView;
 import android.widget.SearchView;
-import android.widget.Toast;
 
 import java.util.ArrayList;
 
@@ -34,7 +32,7 @@ import java.util.ArrayList;
  * @author Zhuo
  *         2015/12/1
  */
-public class PhotoGalleryFragment extends Fragment {
+public class PhotoGalleryFragment extends VisibleFragment {
 
     private static final String TAG = "PhotoGalleryFragment";
 
@@ -163,7 +161,7 @@ public class PhotoGalleryFragment extends Fragment {
                 mGalleryItems = galleryItems;
             }
             setupAdapter();
-            Toast.makeText(getActivity(), "Result Counts: " + totalResult, Toast.LENGTH_LONG).show();
+//            Toast.makeText(getActivity(), "Result Counts: " + totalResult, Toast.LENGTH_LONG).show();
             fetched_page++;
         }
     }
@@ -268,8 +266,8 @@ public class PhotoGalleryFragment extends Fragment {
                 updateItems(0);
                 return true;
             case R.id.menu_item_toggle_polling:
-                boolean shouldStartAlarm = !PullService.isAlarmServiceOn(getActivity());
-                PullService.setServiceAlarm(getActivity(), shouldStartAlarm);
+                boolean shouldStartAlarm = !PollService.isAlarmServiceOn(getActivity());
+                PollService.setServiceAlarm(getActivity(), shouldStartAlarm);
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
                     getActivity().invalidateOptionsMenu();
@@ -285,7 +283,7 @@ public class PhotoGalleryFragment extends Fragment {
         super.onPrepareOptionsMenu(menu);
 
         MenuItem menuItem = menu.findItem(R.id.menu_item_toggle_polling);
-        if (PullService.isAlarmServiceOn(getActivity())) {
+        if (PollService.isAlarmServiceOn(getActivity())) {
             menuItem.setTitle(R.string.stop_polling);
         } else {
             menuItem.setTitle(R.string.start_polling);
