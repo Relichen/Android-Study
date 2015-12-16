@@ -9,4 +9,10 @@
     <string name="stop">Stop</string>
     <string name="gps_enabled">GPS Enabled</string>
     <string name="gps_disabled">GPS Disabled</string>
+    <string name="cell_text">Run at %1$s</string>
+    <string name="new_run">New Run</string>
+    <string name="ticker_text">RunTracking</string>
+    <string name="content_title">Tracking Run</string>
+    <string name="content_text">Current Run ID is</string>
+
 </resources>

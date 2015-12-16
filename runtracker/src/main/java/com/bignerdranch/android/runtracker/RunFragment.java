@@ -20,6 +20,9 @@ import android.widget.Toast;
  *         2015/12/14
  */
 public class RunFragment extends Fragment {
+
+    private static final String ARG_RUN_ID = "RUN_ID";
+
     private RunManager mRunManager;
     private Location mLastLocation;
     private Run mRun;
@@ -30,6 +33,9 @@ public class RunFragment extends Fragment {
     private BroadcastReceiver mLocationReceiver = new LocationReceiver(){
         @Override
         protected void onLocationReceived(Context context, Location location) {
+            if (!mRunManager.isTrackingRun(mRun)) {
+                return;
+            }
             mLastLocation = location;
             if (isVisible()) {
                 updateUI();
@@ -49,6 +55,15 @@ public class RunFragment extends Fragment {
         setRetainInstance(true);
 
         mRunManager = RunManager.get(getActivity());
+
+        Bundle args = getArguments();
+        if (args != null) {
+            long runId = args.getLong(ARG_RUN_ID);
+            if (runId != -1) {
+                mRun = mRunManager.getRun(runId);
+                mLastLocation = mRunManager.getLastLocationForRun(runId);
+            }
+        }
     }
 
     @Nullable
@@ -67,9 +82,29 @@ public class RunFragment extends Fragment {
         mStartButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                mRunManager.startLocationUpdates();
-                mRun = new Run();
+                if (mRun == null) {
+                    mRun = mRunManager.startNewRun();
+                } else {
+                    mRunManager.startTrackingRun(mRun);
+                }
                 updateUI();
+
+//                Resources r = getResources();
+//                Intent intent = new Intent(getActivity(), RunActivity.class);
+//                intent.putExtra(RunActivity.EXTRA_RUN_ID, mRun.getId());
+//                PendingIntent pi = PendingIntent.getActivity(getActivity(), 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+//                Notification notification = new NotificationCompat.Builder(getActivity())
+//                        .setTicker(r.getString(R.string.ticker_text))
+//                        .setSmallIcon(android.R.drawable.ic_dialog_info)
+//                        .setContentTitle(r.getString(R.string.content_title))
+//                        .setContentText(r.getString(R.string.content_text))
+//                        .setContentIntent(pi)
+//                        .setAutoCancel(false)
+//                        .build();
+//
+//                NotificationManager manager = (NotificationManager) getActivity()
+//                        .getSystemService(Context.NOTIFICATION_SERVICE);
+//                manager.notify(0, notification);
             }
         });
 
@@ -77,7 +112,7 @@ public class RunFragment extends Fragment {
         mStopButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                mRunManager.stopLocationUpdates();
+                mRunManager.stopRun();
                 updateUI();
             }
         });
@@ -89,6 +124,7 @@ public class RunFragment extends Fragment {
 
     private void updateUI() {
         boolean started = mRunManager.isTrackingRun();
+        boolean trackingThisRun = mRunManager.isTrackingRun(mRun);
 
         if (mRun != null) {
             mStartedTextView.setText(DateFormat.format("yyyy年MM月dd日 EEEE kk:mm", mRun.getStartDate()));
@@ -104,7 +140,7 @@ public class RunFragment extends Fragment {
         mDurationTextView.setText(Run.formatDuration(durationSeconds));
 
         mStartButton.setEnabled(!started);
-        mStopButton.setEnabled(started);
+        mStopButton.setEnabled(started && trackingThisRun);
     }
 
     @Override
@@ -118,5 +154,13 @@ public class RunFragment extends Fragment {
     public void onStop() {
         getActivity().unregisterReceiver(mLocationReceiver);
         super.onStop();
+    }
+
+    public static RunFragment newInstance(long runId) {
+        Bundle args = new Bundle();
+        args.putLong(ARG_RUN_ID, runId);
+        RunFragment fragment = new RunFragment();
+        fragment.setArguments(args);
+        return fragment;
     }
 }
