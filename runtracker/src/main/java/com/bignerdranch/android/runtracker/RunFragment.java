@@ -7,6 +7,8 @@ import android.location.Location;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
+import android.support.v4.app.LoaderManager;
+import android.support.v4.content.Loader;
 import android.text.format.DateFormat;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -22,6 +24,9 @@ import android.widget.Toast;
 public class RunFragment extends Fragment {
 
     private static final String ARG_RUN_ID = "RUN_ID";
+
+    private static final int LOAD_RUN = 0;
+    private static final int LOAD_LOCATION = 1;
 
     private RunManager mRunManager;
     private Location mLastLocation;
@@ -53,15 +58,17 @@ public class RunFragment extends Fragment {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setRetainInstance(true);
-
         mRunManager = RunManager.get(getActivity());
 
         Bundle args = getArguments();
         if (args != null) {
             long runId = args.getLong(ARG_RUN_ID);
             if (runId != -1) {
-                mRun = mRunManager.getRun(runId);
-                mLastLocation = mRunManager.getLastLocationForRun(runId);
+//                mRun = mRunManager.getRun(runId);
+//                mLastLocation = mRunManager.getLastLocationForRun(runId);
+                LoaderManager loaderManager = getLoaderManager();
+                loaderManager.initLoader(LOAD_RUN, null, new RunLoaderCallbacks());
+                loaderManager.initLoader(LOAD_LOCATION, null, new LocationLoaderCallbacks());
             }
         }
     }
@@ -88,23 +95,6 @@ public class RunFragment extends Fragment {
                     mRunManager.startTrackingRun(mRun);
                 }
                 updateUI();
-
-//                Resources r = getResources();
-//                Intent intent = new Intent(getActivity(), RunActivity.class);
-//                intent.putExtra(RunActivity.EXTRA_RUN_ID, mRun.getId());
-//                PendingIntent pi = PendingIntent.getActivity(getActivity(), 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
-//                Notification notification = new NotificationCompat.Builder(getActivity())
-//                        .setTicker(r.getString(R.string.ticker_text))
-//                        .setSmallIcon(android.R.drawable.ic_dialog_info)
-//                        .setContentTitle(r.getString(R.string.content_title))
-//                        .setContentText(r.getString(R.string.content_text))
-//                        .setContentIntent(pi)
-//                        .setAutoCancel(false)
-//                        .build();
-//
-//                NotificationManager manager = (NotificationManager) getActivity()
-//                        .getSystemService(Context.NOTIFICATION_SERVICE);
-//                manager.notify(0, notification);
             }
         });
 
@@ -163,4 +153,44 @@ public class RunFragment extends Fragment {
         fragment.setArguments(args);
         return fragment;
     }
+
+    private class RunLoaderCallbacks implements LoaderManager.LoaderCallbacks<Run> {
+
+        @Override
+        public Loader<Run> onCreateLoader(int id, Bundle args) {
+            return new RunLoader(getActivity(), args.getLong(ARG_RUN_ID));
+        }
+
+        @Override
+        public void onLoadFinished(Loader<Run> loader, Run data) {
+            mRun = data;
+            updateUI();
+        }
+
+        @Override
+        public void onLoaderReset(Loader<Run> loader) {
+
+        }
+    }
+
+    private class LocationLoaderCallbacks implements LoaderManager.LoaderCallbacks<Location> {
+
+        @Override
+        public Loader<Location> onCreateLoader(int id, Bundle args) {
+            return new LocationLoader(getContext(), args.getLong(ARG_RUN_ID));
+        }
+
+        @Override
+        public void onLoadFinished(Loader<Location> loader, Location data) {
+            mLastLocation = data;
+            updateUI();
+        }
+
+        @Override
+        public void onLoaderReset(Loader<Location> loader) {
+
+        }
+    }
+
+
 }

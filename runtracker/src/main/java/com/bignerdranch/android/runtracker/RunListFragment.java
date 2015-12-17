@@ -1,5 +1,7 @@
 package com.bignerdranch.android.runtracker;
 
+import android.support.v4.content.Loader;
+import android.support.v4.app.LoaderManager.LoaderCallbacks;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -26,32 +28,34 @@ import android.widget.TextView;
  * @author Zhuo
  *         2015/12/15
  */
-public class RunListFragment extends ListFragment {
+public class RunListFragment extends ListFragment implements LoaderCallbacks<Cursor> {
 
     private static final int REQUEST_NEW_RUN = 0;
     private static final int NOTIFICATION_ID = 0;
 
-    private RunDatabaseHelper.RunCursor mCursor;
+//    private RunDatabaseHelper.RunCursor mCursor;
     private NotificationManager mNotificationManager;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        mCursor = RunManager.get(getActivity()).queryRuns();
         mNotificationManager = (NotificationManager) getActivity()
                 .getSystemService(Context.NOTIFICATION_SERVICE);
 
         setHasOptionsMenu(true);
 
-        RunCursorAdapter adapter = new RunCursorAdapter(getActivity(), mCursor);
-        setListAdapter(adapter);
+//        mCursor = RunManager.get(getActivity()).queryRuns();
+//        RunCursorAdapter adapter = new RunCursorAdapter(getActivity(), mCursor);
+//        setListAdapter(adapter);
+
+        getLoaderManager().initLoader(0, null, this);
     }
 
-    @Override
-    public void onDestroy() {
-        mCursor.close();
-        super.onDestroy();
-    }
+//    @Override
+//    public void onDestroy() {
+//        mCursor.close();
+//        super.onDestroy();
+//    }
 
     @Override
     public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
@@ -74,8 +78,9 @@ public class RunListFragment extends ListFragment {
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == REQUEST_NEW_RUN) {
-            mCursor.requery();
-            ((RunCursorAdapter)getListAdapter()).notifyDataSetChanged();
+//            mCursor.requery();
+//            ((RunCursorAdapter) getListAdapter()).notifyDataSetChanged();
+            getLoaderManager().restartLoader(0, null, this);
         }
     }
 
@@ -83,7 +88,27 @@ public class RunListFragment extends ListFragment {
     public void onListItemClick(ListView l, View v, int position, long id) {
         Intent i = new Intent(getActivity(), RunActivity.class);
         i.putExtra(RunActivity.EXTRA_RUN_ID, id);
-        startActivity(i);
+//        这里设置有返回结果的startActivity
+//        是为了让它回到列表页面时刷新列表
+//        这里的REQUEST_NEW_RUN没有原来的意义
+        startActivityForResult(i, REQUEST_NEW_RUN);
+    }
+
+
+    @Override
+    public Loader<Cursor> onCreateLoader(int id, Bundle args) {
+        return new RunListCursorLoader(getActivity());
+    }
+
+    @Override
+    public void onLoadFinished(Loader loader, Cursor data) {
+        RunCursorAdapter adapter = new RunCursorAdapter(getActivity(), (RunDatabaseHelper.RunCursor) data);
+        setListAdapter(adapter);
+    }
+
+    @Override
+    public void onLoaderReset(Loader loader) {
+        setListAdapter(null);
     }
 
     private static class RunCursorAdapter extends CursorAdapter {
@@ -149,6 +174,17 @@ public class RunListFragment extends ListFragment {
     public void onPause() {
         super.onPause();
         mNotificationManager.cancel(NOTIFICATION_ID);
+    }
 
+    private static class RunListCursorLoader extends SQLiteCursorLoader {
+
+        public RunListCursorLoader(Context context) {
+            super(context);
+        }
+
+        @Override
+        protected Cursor loadCursor() {
+            return RunManager.get(getContext()).queryRuns();
+        }
     }
 }
